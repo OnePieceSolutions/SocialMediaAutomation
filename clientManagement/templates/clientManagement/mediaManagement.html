@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<div class="container mx-auto px-4 py-12 animate-fade-in">
+    <header class="text-center mb-16">
+        <h1 class="text-4xl md:text-5xl font-bold text-indigo-700 mb-4 tracking-tight">Social Media Profile Manager</h1>
+        <p class="text-gray-600 max-w-2xl mx-auto text-lg">Easily manage and verify your social media credentials in one place. Seamless, secure, and powerful.</p>
+    </header>
+
+    <section class="mb-16">
+        <h2 class="text-2xl font-semibold mb-6">Connected Platforms</h2>
+        {% if credentials %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for cred in credentials %}
+                    <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 flex items-center justify-between">
+                        <div class="flex items-center space-x-4">
+                            <div class="social-icon bg-indigo-100 text-indigo-600 rounded-full w-12 h-12 flex items-center justify-center text-xl">
+                                <i class="fab fa-{{ cred.platform }}"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-semibold capitalize text-gray-900">{{ cred.platform }}</h4>
+                                {% if cred.api_data.username %}
+                                    <p class="text-sm text-gray-500">@{{ cred.api_data.username }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div>
+                            {% if cred.platform == 'twitter' and not cred.api_data.bearer_token %}
+                                <div class="bg-red-500 p-2 cursor-pointer rounded-lg inline-flex">
+                                    <a class="text-sm" href="/twitter/login?client_id={{ cred.api_data.client_id }}">Authenticate</a>
+                                </div>
+                            {% else %}
+                            <button onclick="editPlatform('{{ cred.platform }}', '{{ cred.api_json|escapejs }}')" class="text-indigo-600 hover:text-indigo-800">
+                                <i class="fas fa-pen mr-1"></i>
+                            </button>
+                            {% endif %}
+                            <button onclick="deletePlatform('{{ cred.platform }}')" class="ml-2">
+                                <i class="fa-solid fa-trash text-red-500 hover:text-red-700"></i>
+                            </button>                            
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-gray-500 text-lg bg-white p-6 rounded-xl shadow">
+                <i class="fas fa-plug text-2xl mb-2"></i>
+                <p>No platforms connected yet. Start by adding one below.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    <section class="mb-16">
+        <h2 class="text-2xl font-semibold mb-6">Add New Platforms</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {% for key, name in credential_choices %}
+                {% if key not in existing_platforms %}
+                <div onclick="addPlatform('{{ key }}')"
+                     class="platform-card bg-white rounded-xl p-5 shadow-lg border border-gray-200 cursor-pointer hover:bg-indigo-50 hover:shadow-xl transform hover:-translate-y-1 transition">
+                    <div class="flex items-center">
+                        <div class="social-icon bg-gray-800 text-white rounded-full w-10 h-10 flex items-center justify-center text-lg">
+                            <i class="fab fa-{{ key }}"></i>
+                        </div>
+                        <span class="ml-3 font-medium text-gray-800 capitalize">{{ name }}</span>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+<!-- Modal -->
+<div id="platformModal" class="fixed inset-0 z-50 bg-black bg-opacity-40 hidden flex items-center justify-center">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative transform scale-95 opacity-0 transition-all duration-300 modal-content">
+        <button onclick="closeModal()" class="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-xl">
+            <i class="fas fa-times"></i>
+        </button>
+        <div id="modalContent" class="mt-2"></div>
+    </div>
+</div>
+
+<div id="messageModal" class="fixed inset-0 z-50 bg-black bg-opacity-40 hidden flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 transform scale-95 opacity-0 transition-all duration-300 modal-box text-center overflow-y-auto max-h-[80vh]">
+        <h3 id="modalTitle" class="text-xl font-semibold mb-2 text-indigo-700"></h3>
+        <p id="modalMessage" class="text-gray-700 mb-4"></p>
+        <button onclick="closeMessageModal()" class="mt-2 bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">OK</button>
+    </div>
+</div>
+
+<!-- Scripts -->
+<script>
+const platformTemplates = {
+        facebook: {
+            name: 'Facebook',
+            icon: 'fab fa-facebook-f',
+            fields: [
+                { label: 'Profile URL', key: 'profile_url', type: 'url' },
+                { label: 'Username', key: 'username', type: 'text' },
+                { label: 'Access Token', key: 'access_token', type: 'text' },
+                { label: 'Page Id', key: 'page_id', type: 'text' }
+            ]
+        },
+        instagram: {
+            name: 'Instagram',
+            icon: 'fab fa-instagram',
+            fields: [
+                { label: 'Profile URL', key: 'profile_url', type: 'url' },
+                { label: 'Username', key: 'username', type: 'text' },
+                { label: 'Page Id', key: 'page_id', type: 'text' },
+                { label: 'Access Token', key: 'access_token', type: 'text' }
+            ]
+        },
+        twitter: {
+            name: 'Twitter',
+            icon: 'fab fa-twitter',
+            fields: [
+                { label: 'Profile URL', key: 'profile_url', type: 'url' },
+                { label: 'Username', key: 'username', type: 'text' },
+                { label: 'Client Id', key: 'client_id', type: 'text' },
+                { label: 'Api Key', key: 'api_key', type: 'text' },
+                { label: 'Api Key Secret', key: 'api_key_secret', type: 'text' },
+                { label: 'Access Token', key: 'access_token', type: 'text' },
+                { label: 'Access Token Secret', key: 'access_token_secret', type: 'text' },
+            ]
+        },
+        linkedin: {
+            name: 'LinkedIn',
+            icon: 'fab fa-linkedin-in',
+            fields: [
+                { label: 'Profile URL', key: 'profile_url', type: 'url' },
+                { label: 'Headline', key: 'headline', type: 'text' }
+            ]
+        },
+        reddit: {
+            name: 'Reddit',
+            icon: 'fab fa-reddit-alien',
+            fields: [
+                { label: 'Profile URL', key: 'profile_url', type: 'url' },
+                { label: 'Username', key: 'username', type: 'text' },
+                { label: 'Password', key: 'password', type: 'text' },
+                { label: 'Client Id', key: 'client_id', type: 'text' },
+                { label: 'Client Secret', key: 'client_secret', type: 'text' }
+            ]
+        }
+    };
+
+function addPlatform(platformId) {
+    openModal(platformId);
+}
+
+function editPlatform(platformId, jsonData) {
+    const data = JSON.parse(jsonData);
+    openModal(platformId, data);
+}
+
+function openModal(platformId, data = {}) {
+    const modal = document.getElementById('platformModal');
+    const template = platformTemplates[platformId];
+    if (!template) return;
+    const content = document.getElementById('modalContent');
+    let html = `<form id="platformForm" data-platform="${platformId}">
+        <h2 class="text-2xl font-semibold mb-6 flex items-center gap-2 text-indigo-700">
+            <i class="${template.icon}"></i> ${template.name} Credential
+        </h2>`;
+    template.fields.forEach(field => {
+        const val = data[field.key] || '';
+        html += `
+            <div class="mb-4">
+                <label class="block text-sm text-gray-600 mb-1">${field.label}</label>
+                <input name="${field.key}" type="${field.type}" value="${val}" 
+                    class="w-full px-3 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none text-black"
+                    placeholder="${field.label}" />
+            </div>`;
+    });
+    html += `<button type="submit" class="mt-6 w-full bg-indigo-600 text-white py-2 rounded-md hover:bg-indigo-700 transition text-lg">Verify & Save</button></form>`;
+
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        const modalBox = modal.querySelector('.modal-content');
+        modalBox.classList.remove('scale-95', 'opacity-0');
+        modalBox.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+function closeModal() {
+    const modal = document.getElementById('platformModal');
+    const modalBox = modal.querySelector('.modal-content');
+    modalBox.classList.remove('scale-100', 'opacity-100');
+    modalBox.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        document.getElementById('modalContent').innerHTML = '';
+    }, 200);
+}
+</script>
+
+<script>
+document.addEventListener("submit", async function (e) {
+    if (e.target && e.target.id === "platformForm") {
+        e.preventDefault();
+        const form = e.target;
+        const platform = form.dataset.platform;
+        const formData = new FormData(form);
+        const data = {};
+        formData.forEach((value, key) => {
+            data[key] = value;
+        });
+        try {
+            const response = await fetch("{% url 'clientManagement:verify_and_save_credential' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ platform, data })
+            });
+            const result = await response.json();
+            closeModal();
+            if (result.success) {
+            showMessageModal("Success", "Credential saved successfully!");
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showMessageModal("Error", result.message || "Something went wrong.");
+            }
+        } catch (err) {
+            alert("🚨 An unexpected error occurred. Please try again later.");
+        }
+    }
+});
+
+function showMessageModal(title, message) {
+    const modal = document.getElementById('messageModal');
+    const box = modal.querySelector('.modal-box');
+    document.getElementById('modalTitle').innerText = title;
+    document.getElementById('modalMessage').innerText = message;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        box.classList.remove('scale-95', 'opacity-0');
+        box.classList.add('scale-100', 'opacity-100');
+    }, 10);
+}
+
+function closeMessageModal() {
+    const modal = document.getElementById('messageModal');
+    const box = modal.querySelector('.modal-box');
+    box.classList.remove('scale-100', 'opacity-100');
+    box.classList.add('scale-95', 'opacity-0');
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 200);
+}
+
+async function deletePlatform(platform) {
+    if (!confirm(`Are you sure you want to delete ${platform} credentials?`)) return;
+
+    try {
+        const response = await fetch("{% url 'clientManagement:delete_credential' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({ platform })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showMessageModal("Deleted", "Platform credentials removed successfully.");
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showMessageModal("Error", result.message || "Failed to delete credentials.");
+        }
+    } catch (err) {
+        showMessageModal("Error", "An unexpected error occurred.");
+    }
+}
+</script>
+{% endblock %}

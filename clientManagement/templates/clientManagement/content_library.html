@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Content Library{% endblock %}
+{% block header_title %}Your Content Library{% endblock %}
+
+{% block content %}
+<section class="px-6 py-8 bg-gray-100 dark:bg-gray-900 min-h-screen">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+      <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Content Library</h2>
+      <div class="flex gap-4">
+        <!-- <form id="filtersForm" method="get" class="flex gap-4 mb-6">
+          <div>
+            <label for="platformSelect" class="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Platform</label>
+            <select name="platform" id="platformSelect" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 px-3 py-2">
+              <option value="all" {% if platform == 'all' %}selected{% endif %}>All</option>
+              <option value="facebook" {% if platform == 'facebook' %}selected{% endif %}>Facebook</option>
+              <option value="instagram" {% if platform == 'instagram' %}selected{% endif %}>Instagram</option>
+              <option value="twitter" {% if platform == 'twitter' %}selected{% endif %}>Twitter</option>
+            </select>
+          </div>
+          <div>
+            <label for="statusSelect" class="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Status</label>
+            <select name="status" id="statusSelect" class="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm text-gray-700 dark:text-gray-200 px-3 py-2">
+              <option value="all" {% if status == 'all' %}selected{% endif %}>All</option>
+              <option value="posted" {% if status == 'posted' %}selected{% endif %}>Posted</option>
+              <option value="not_posted" {% if status == 'not_posted' %}selected{% endif %}>Not Posted</option>
+            </select>
+          </div>
+        </form>         -->
+      </div>
+    </div>
+
+    <div id="postsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for post in posts %}
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md hover:shadow-xl transition-all overflow-hidden" data-platform="{{ post.platform|default:'unknown' }}" data-posted="{{ post.external_post|yesno:'true,false' }}">
+          {% if post.image_file %}
+            <img src="{{ post.image_file.url }}" alt="Post Image" class="w-full h-48 object-cover">
+          {% elif post.image_url %}
+            <img src="{{ post.image_url }}" alt="Post Image" class="w-full h-48 object-cover">
+          {% else %}
+            <div class="w-full h-48 bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 text-sm">
+              No Image Available
+            </div>
+          {% endif %}
+          <div class="p-5 space-y-3">
+            <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400">
+              <span>{{ post.created_at|date:"M d, Y H:i" }}</span>
+              {% if post.external_post %}
+                <span class="text-green-600 dark:text-green-400 font-medium">Posted</span>
+              {% else %}
+                <span class="text-red-500 font-medium">Not Posted</span>
+              {% endif %}
+            </div>
+            <p class="text-gray-800 dark:text-gray-200 text-sm whitespace-pre-line">
+              {{ post.text|default:"(No Message)"|truncatewords:30 }}
+            </p>
+            {% if post.external_post %}
+              <p class="text-xs text-blue-600 dark:text-blue-400">Posted to {{ post.platform|title }}</p>
+            {% endif %}
+            {% if not post.external_post %}
+            <a href="{% url 'clientManagement:edit_image' post.id %}" class="inline-block mt-2 px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold transition">
+              Edit
+            </a>
+            <form method="post" class="inline-block mt-2">
+              {% csrf_token %}
+              <input type="hidden" name="post_id" value="{{ post.id }}">
+              <button type="submit" class="px-4 py-1 bg-red-500 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded hover:bg-gray-400 dark:hover:bg-gray-600 text-xs font-semibold transition">
+                Delete
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="col-span-full text-center text-gray-500 dark:text-gray-400">
+          No posts found.
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

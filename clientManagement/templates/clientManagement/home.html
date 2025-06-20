@@ -1,0 +1,124 @@
+{% extends 'base.html' %} {% load static %} {% block content %}
+<!-- 
+<style>
+  .form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    color: #111827;
+    background-color: white;
+    font-size: 0.95rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    background-color: white;
+  }
+
+  @keyframes fade-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-down {
+    animation: fade-in-down 0.3s ease-out;
+  }
+</style> -->
+
+<section class="mx-auto p-5">
+
+  
+  <div class="bg-gray-700 p-8 rounded-2xl shadow-lg">
+    <div class="flex justify-between items-center mb-6 border-b pb-4">
+      <h2 class="text-2xl font-bold text-primary-100 dark:text-white">
+        User Information
+      </h2>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div>
+        <p class="text-sm font-medium">Name</p>
+        <p id="view-name" class="text-lg font-semibold text-primary-500">
+          {{ user_data.username }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Email
+        </p>
+        <p id="view-email" class="text-lg font-semibold text-primary-500">
+          {{ user_data.email }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Company
+        </p>
+        <p id="view-company" class="text-lg font-semibold text-primary-500">
+          {{ user_data.companyName }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Phone
+        </p>
+        <p id="view-phone" class="text-lg font-semibold text-primary-500">
+          {{ user_data.phone }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Address
+        </p>
+        <p id="view-address" class="text-lg font-semibold text-primary-500">
+          {{ user_data.address }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Company Type
+        </p>
+        <p
+          id="view-company-type"
+          class="text-lg font-semibold text-primary-500"
+        >
+          {{ user_data.companyType }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Target Audience
+        </p>
+        <p id="view-audience" class="text-lg font-semibold text-primary-500">
+          {{ user_data.targetAudience }}
+        </p>
+      </div>
+
+      <div>
+        <p class="text-sm font-medium text-primary-100 dark:text-gray-400">
+          Platforms
+        </p>
+        <p id="view-platforms" class="text-lg font-semibold text-primary-500">
+          {{ user_data.platform }}
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

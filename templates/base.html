@@ -1,0 +1,171 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-950">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"
+      defer
+    ></script>
+    <script src="https://unpkg.com/htmx.org@1.9.2"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              base: {
+                100: "#f0f4f8",
+                900: "#0e1012",
+              },
+              brand: {
+                500: "#6366f1",
+                700: "#4f46e5",
+              },
+              soft: {
+                100: "#1f2937",
+                200: "#111827",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+      }
+    </style>
+    <title>{% block title %}OnePiece{% endblock %}</title>
+  </head>
+  <body class=" bg-soft-200 text-base-100 overflow-hidden">
+    <div class="flex h-screen" x-data="{ sidebarOpen: false }">
+      <div
+        :class="sidebarOpen ? 'block' : 'hidden md:block'"
+        class="bg-soft-100 w-64 space-y-6 px-4 py-6 fixed inset-y-0 left-0 z-30 transform md:relative md:translate-x-0 transition duration-200 ease-in-out"
+      >
+        <a class="text-2xl font-bold text-brand-500 cursor-pointer" href="/">OnePiece</a>
+        <nav class="flex flex-col space-y-2">
+            
+          <a
+            href="/dashboard"
+            class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white"
+            >Dashboard</a
+          >
+          <a
+            href="/new-post"
+            class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white"
+            >New Post</a
+          >
+          <a
+            href="/content-library"
+            class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white"
+            >Content Library</a
+          >
+          <a href="/campaigns" class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white">
+            Campaign
+          </a>
+          <a href="/media" class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white">
+            Media Manager
+          </a>
+          <a
+            href="/schedule"
+            class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white"
+            >Schedule</a
+          >
+          <a
+            href="/settings"
+            class="px-3 py-2 rounded hover:bg-brand-500 hover:text-white"
+            >Settings</a
+          >
+        </nav>
+      </div>
+
+      <div class="flex-1 flex flex-col overflow-hidden">
+        <header
+          class="flex items-center justify-between bg-soft-100 px-4 py-3 shadow"
+        >
+          <div class="flex items-center space-x-4">
+            <button
+              @click="sidebarOpen = !sidebarOpen"
+              class="md:hidden text-base-100 hover:text-brand-500"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+            <span class="text-lg font-semibold"
+              >{% block header_title %}Dashboard{% endblock %}</span
+            >
+          </div>
+
+          <div class="flex items-center space-x-4">
+            <div x-data="{ open: false }" class="relative">
+              <button
+                @click="open = !open"
+                class="h-8 w-8 rounded-full bg-brand-500 flex items-center justify-center text-white mr-5"
+              >
+                <span class="text-sm font-semibold">{{ user.username|first|upper }}</span>
+              </button>
+              <div
+                x-show="open"
+                @click.away="open = false"
+                class="absolute right-0 mt-2 w-40 bg-white text-gray-700 rounded shadow py-1"
+              >
+                <a href="/" class="block px-4 py-2 text-sm hover:bg-gray-100"
+                  >Profile</a
+                >
+                <a href="/settings" class="block px-4 py-2 text-sm hover:bg-gray-100"
+                  >Settings</a
+                >
+                <a href="/logout" class="block px-4 py-2 text-sm hover:bg-gray-100"
+                  >Logout</a
+                >
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="flex-1 overflow-y-auto bg-soft-200" id="main-content">
+          {% block content %}
+          {% endblock %}
+        </main>
+      </div>
+    </div>
+    {% block extra_body %}{% endblock %}
+    <div id="alertModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+      <div class="bg-white dark:bg-soft-100 rounded-lg shadow-xl max-w-sm w-full p-6 text-center space-y-4">
+        <h3 class="text-xl font-bold text-gray-800 dark:text-white" id="alertModalTitle">Alert</h3>
+        <p class="text-gray-600 dark:text-gray-300" id="alertModalMessage">This is an alert message.</p>
+        <button onclick="closeAlertModal()" class="mt-4 px-4 py-2 bg-brand-500 text-white rounded hover:bg-brand-700 transition">
+          OK
+        </button>
+      </div>
+    </div>
+  </body>
+</html>
+
+<script>
+  function showAlertModal(message, title = "Alert") {
+    document.getElementById("alertModalTitle").textContent = title;
+    document.getElementById("alertModalMessage").textContent = message;
+    document.getElementById("alertModal").classList.remove("hidden");
+  }
+  function closeAlertModal() {
+    document.getElementById("alertModal").classList.add("hidden");
+  }
+  window.alert = function(message) {
+    showAlertModal(message);
+  };
+</script>

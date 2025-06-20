@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Django
+*.log
+*.pot
+*.pyc
+*.sqlite3
+*.db
+db.sqlite3
+media/
+staticfiles/
+local_settings.py
+.env
+
+# Django migrations (keep .py, ignore pyc)
+**/migrations/__pycache__/
+**/migrations/*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# VSCode
+.vscode/
+
+# PyCharm
+.idea/
+*.iml
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Test coverage
+htmlcov/
+.coverage
+.tox/
+.nox/
+
+# Node.js (if using for frontend in Django)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Editor & temp files
+*.bak
+*.swp
+*.swo

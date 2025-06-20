@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Schedule Post{% endblock %}
+{% block header_title %}Post Scheduler{% endblock %}
+
+{% block content %}
+<div class="p-6 max-w-4xl mx-auto space-y-6">
+
+    <div class="flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-gray-100 dark:text-white">Scheduled Posts</h2>
+        <button onclick="toggleModal()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg shadow hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400">
+            + New Schedule
+        </button>
+    </div>
+
+    <!--  -->
+
+    <div id="scheduleModal" class="fixed inset-0 z-50 hidden bg-black/60 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-2xl">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Schedule New Post</h2>
+            <form method="post" action="{% url 'clientManagement:schedule_submit' %}" class="space-y-6">
+                {% csrf_token %}
+                <div>
+                    <label for="newPostSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Select Post</label>
+                    <select id="newPostSelect" name="post_id" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" aria-label="Select Post">
+                        {% for post in posts %}
+                        <option value="{{ post.id }}">
+                            {{ post.text|truncatechars:50 }}
+                        </option>
+                        {% empty %}
+                        <option disabled>No posts available</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="postImmediatelyNew" name="post_immediately" value="true" class="form-checkbox text-indigo-600">
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-200">Post Immediately</span>
+                    </label>
+                </div>
+                <div id="scheduleTimeDivNew">
+                    <label for="newScheduleTime" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Schedule Time</label>
+                    <input type="datetime-local" id="newScheduleTime" name="schedule_time" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" required>
+                </div>
+                <div>
+                    <label for="newPlatformSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Select Platform</label>
+                    <select id="newPlatformSelect" name="platform" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" required>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter</option>
+                        <option value="reddit">Reddit</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="toggleModal()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="editScheduleModal" class="fixed inset-0 z-50 hidden bg-black/60 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-2xl">
+            <h2 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Edit Scheduled Post</h2>
+            <form id="editScheduleForm" method="post" class="space-y-6">
+                {% csrf_token %}
+                <input type="hidden" name="schedule_id" id="editScheduleId">
+                <div>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" id="postImmediatelyEdit" name="post_immediately" value="true" class="form-checkbox text-indigo-600">
+                        <span class="ml-2 text-sm text-gray-700 dark:text-gray-200">Post Immediately</span>
+                    </label>
+                </div>
+                <div id="scheduleTimeDivEdit">
+                    <label for="editScheduleTime" class="block text-sm font-medium text-gray-700 dark:text-gray-200">New Schedule Time</label>
+                    <input type="datetime-local" id="editScheduleTime" name="schedule_time" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" required>
+                </div>
+                <div>
+                    <label for="editPlatform" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Platform</label>
+                    <select name="platform" id="editPlatform" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" required>
+                        <option value="instagram">Instagram</option>
+                        <option value="twitter">Twitter</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="manual">Manual</option>
+                    </select>
+                </div>
+                <div class="flex justify-between space-x-4">
+                    <div>
+                        <button type="button" onclick="toggleEditModal()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">Update</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const postImmediatelyNew = document.getElementById('postImmediatelyNew');
+      const scheduleTimeDivNew = document.getElementById('scheduleTimeDivNew');
+      const newScheduleTimeInput = document.getElementById('newScheduleTime');
+      const scheduleTimeUtcInput = document.createElement('input');
+      scheduleTimeUtcInput.type = 'hidden';
+      scheduleTimeUtcInput.name = 'schedule_time_utc';
+      scheduleTimeUtcInput.id = 'scheduleTimeUtcInput';
+      newScheduleTimeInput.parentElement.appendChild(scheduleTimeUtcInput);
+  
+      function toggleScheduleTimeNew() {
+          if (postImmediatelyNew.checked) {
+              scheduleTimeDivNew.classList.add('hidden');
+              newScheduleTimeInput.removeAttribute('required');
+          } else {
+              scheduleTimeDivNew.classList.remove('hidden');
+              newScheduleTimeInput.setAttribute('required', 'required');
+          }
+      }
+      postImmediatelyNew.addEventListener('change', toggleScheduleTimeNew);
+      toggleScheduleTimeNew();
+  
+      const newScheduleForm = document.querySelector('form[action="{% url "clientManagement:schedule_submit" %}"]');
+      newScheduleForm.addEventListener('submit', function () {
+          const localDate = new Date(newScheduleTimeInput.value);
+          if (!isNaN(localDate)) {
+              scheduleTimeUtcInput.value = localDate.toISOString();
+          }
+      });
+  
+      const postImmediatelyEdit = document.getElementById('postImmediatelyEdit');
+      const scheduleTimeDivEdit = document.getElementById('scheduleTimeDivEdit');
+      const editScheduleTimeInput = document.getElementById('editScheduleTime');
+      const editScheduleForm = document.getElementById('editScheduleForm');
+      const editUtcInput = document.createElement('input');
+      editUtcInput.type = 'hidden';
+      editUtcInput.name = 'schedule_time_utc';
+      editUtcInput.id = 'editScheduleTimeUtc';
+      editScheduleTimeInput.parentElement.appendChild(editUtcInput);
+  
+      function toggleScheduleTimeEdit() {
+          if (postImmediatelyEdit.checked) {
+              scheduleTimeDivEdit.classList.add('hidden');
+              editScheduleTimeInput.removeAttribute('required');
+          } else {
+              scheduleTimeDivEdit.classList.remove('hidden');
+              editScheduleTimeInput.setAttribute('required', 'required');
+          }
+      }
+      postImmediatelyEdit.addEventListener('change', toggleScheduleTimeEdit);
+      toggleScheduleTimeEdit();
+  
+      editScheduleForm.addEventListener('submit', function () {
+          const localDate = new Date(editScheduleTimeInput.value);
+          if (!isNaN(localDate)) {
+              editUtcInput.value = localDate.toISOString();
+          }
+      });
+  
+      function toggleModal() {
+          document.getElementById("scheduleModal").classList.toggle("hidden");
+          postImmediatelyNew.checked = false;
+          toggleScheduleTimeNew();
+          newScheduleTimeInput.value = '';
+      }
+  
+      function toggleEditModal() {
+          document.getElementById("editScheduleModal").classList.toggle("hidden");
+      }
+  
+      window.toggleModal = toggleModal;
+      window.toggleEditModal = toggleEditModal;
+  
+      window.openEditModal = function (scheduleId, currentTime, platform) {
+          document.getElementById("editScheduleId").value = scheduleId;
+          editScheduleTimeInput.value = currentTime;
+          document.getElementById("editPlatform").value = platform;
+          editScheduleForm.action = `/schedule/update/${scheduleId}/`;
+          const isScheduled = !!currentTime;
+          postImmediatelyEdit.checked = !isScheduled;
+          toggleScheduleTimeEdit();
+          toggleEditModal();
+      }
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-utc]").forEach(el => {
+      const utcTime = el.getAttribute("data-utc");
+      const localTime = new Date(utcTime).toLocaleString();
+      el.querySelector(".local-time").textContent = localTime;
+    });
+  });
+</script>  
+{% endblock %}

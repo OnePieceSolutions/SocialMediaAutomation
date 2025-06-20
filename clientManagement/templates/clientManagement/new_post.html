@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}New Post{% endblock %}
+{% block header_title %}New Post{% endblock %}
+
+{% block content %}
+<style>
+  .form-input {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    color: #111827;
+    background-color: white;
+    font-size: 0.95rem;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    background-color: white;
+  }
+
+  @keyframes fade-in-down {
+    from {
+      opacity: 0;
+      transform: translateY(-1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-down {
+    animation: fade-in-down 0.3s ease-out;
+  }
+</style>
+
+<div class="p-6 space-y-4">
+  <button 
+    onclick="loadPrompts()"
+    class="bg-brand-500 text-white px-5 py-2 rounded shadow hover:bg-brand-700 transition"
+  >
+    Generate AI Content
+  </button>
+
+  <div 
+    id="promptModal"
+    class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center transition duration-300"
+  >
+    <div class="bg-white text-gray-900 dark:bg-gray-900 p-8 rounded-2xl shadow-2xl w-full max-w-2xl relative animate-fade-in-down">
+      <h2 class="text-2xl font-semibold text-gray-800 dark:text-white mb-6">
+        Customize Your Prompt
+      </h2>
+
+      <form
+        id="promptFormContainer"
+        method="POST"
+        action="{% url 'clientManagement:post' %}"
+        class="space-y-4"
+      >
+        {% csrf_token %}
+        <label class="text-gray-700 dark:text-gray-300 text-sm font-medium">Text Prompt</label>
+        <textarea
+          name="text_prompt"
+          rows="4"
+          placeholder="Enter your text prompt here..."
+          class="form-input mb-4"
+        ></textarea>
+
+        <label class="text-gray-700 dark:text-gray-300 text-sm font-medium">Image Prompt</label>
+        <textarea
+          name="image_prompt"
+          rows="4"
+          placeholder="Enter your image prompt here..."
+          class="form-input mb-4"
+        ></textarea>
+
+        <div class="flex justify-end pt-4 space-x-3">
+          <button
+            type="button"
+            onclick="toggleModal()"
+            class="text-white bg-red-500 hover:bg-red-600 px-6 py-2 rounded-lg shadow"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg shadow text-white"
+          >
+            Generate
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleModal() {
+    document.getElementById("promptModal").classList.toggle("hidden");
+  }
+
+  async function loadPrompts() {
+    toggleModal();
+    try {
+      const response = await fetch("{% url 'clientManagement:generate_prompts' %}");
+      const data = await response.json();
+      document.querySelector('textarea[name="text_prompt"]').value = data.text_prompt || "";
+      document.querySelector('textarea[name="image_prompt"]').value = data.image_prompt || "";
+    } catch (error) {
+      console.error("Failed to load prompts:", error);
+    }
+  }
+</script>
+{% endblock %}

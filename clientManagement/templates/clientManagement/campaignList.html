@@ -1,0 +1,136 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+
+<div class="container mx-auto px-6 py-10">
+  <div class="flex justify-between items-center mb-8">
+    <h1 class="text-4xl font-bold text-gray-100">Your Campaigns</h1>
+    <a href="/create-campaign" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+      + New Campaign
+    </a>
+  </div>
+
+  {% for campaign in campaigns %}
+  <div id="campaign-{{ campaign.id }}" class="mb-10 p-6 rounded-xl shadow-lg bg-gray-900 text-white border border-gray-700">
+    <div class="flex justify-between items-start flex-wrap gap-4">
+      <div>
+        <h2 class="text-2xl font-semibold">{{ campaign.name }}</h2>
+        <p class="text-sm text-gray-400 mt-1">
+          {{ campaign.start_date }} → {{ campaign.end_date }}
+        </p>
+      </div>
+      <div class="flex gap-4 items-center">
+        <a href="{% url 'clientManagement:edit_campaign' campaign.id %}" class="text-blue-400 hover:underline text-sm">
+          ✏️ Edit
+        </a>
+        <button
+          type="button"
+          onclick="deleteCampaign('{{ campaign.id }}')"
+          class="text-red-400 hover:underline text-sm"
+        >
+          🗑️ Delete
+        </button>
+
+      </div>
+    </div>
+
+    <p class="mt-3 text-gray-300 line-clamp-1">{{ campaign.description }}</p>
+    <p class="mt-1 text-sm text-gray-400">Max Posts/Day: {{ campaign.max_posts_per_day }}</p>
+
+    <h3 class="mt-6 text-lg font-semibold text-white">📅 Scheduled Posts</h3>
+
+    <div class="overflow-x-auto mt-3">
+      <table class="min-w-full text-sm border-separate border-spacing-y-2">
+        <thead class="bg-gray-800 text-gray-300 rounded-md">
+          <tr>
+            <th class="px-4 py-2 text-left">Date</th>
+            <th class="px-4 py-2 text-left">Time</th>
+            <th class="px-4 py-2 text-left">Platform</th>
+            <th class="px-4 py-2 text-left">Content</th>
+            <th class="px-4 py-2 text-left">Audience</th>
+            <th class="px-4 py-2 text-left">Keywords</th>
+            <th class="px-4 py-2 text-left">Tone</th>
+            <th class="px-4 py-2 text-left">CTA</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for post in campaign.posts.all %}
+          <tr class="bg-gray-800 text-gray-200 hover:bg-gray-700 transition rounded-lg">
+            <td class="px-4 py-2 whitespace-nowrap">{{ post.date }}</td>
+            <td class="px-4 py-2 whitespace-nowrap">{{ post.time }}</td>
+            <td class="px-4 py-2 capitalize whitespace-nowrap">{{ post.platform }}</td>
+            
+            <td class="px-4 py-2 max-w-xs truncate hover:whitespace-normal" title="{{ post.content }}">
+              <div class="line-clamp-2">{{ post.content }}</div>
+            </td>
+        
+            <td class="px-4 py-2 max-w-xs truncate hover:whitespace-normal" title="{{ post.target_audience }}">
+              <div class="line-clamp-1">{{ post.target_audience }}</div>
+            </td>
+        
+            <td class="px-4 py-2 max-w-xs truncate hover:whitespace-normal" title="{{ post.keywords }}">
+              <div class="line-clamp-1 break-words">{{ post.keywords }}</div>
+            </td>
+        
+            <td class="px-4 py-2 max-w-xs truncate hover:whitespace-normal" title="{{ post.tone }}">
+              <div class="line-clamp-1">{{ post.tone }}</div>
+            </td>
+        
+            <td class="px-4 py-2 max-w-xs truncate hover:whitespace-normal" title="{{ post.call_to_action }}">
+              <div class="line-clamp-1 break-words">{{ post.call_to_action }}</div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-gray-400 py-4">No posts scheduled.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        
+      </table>
+    </div>
+  </div>
+  {% empty %}
+  <p class="text-center text-gray-500 text-lg">No campaigns found.</p>
+  {% endfor %}
+</div>
+<script>
+  function deleteCampaign(campaignId) {
+    if (!confirm("Are you sure you want to delete this campaign?")) return;
+
+    fetch(`/delete-campaign/${campaignId}/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
+      },
+    })
+    .then(response => {
+      if (!response.ok) throw new Error("Failed to delete campaign");
+      return response.json();
+    })
+    .then(() => {
+      alert("✅ Campaign deleted successfully.");
+      document.getElementById(`campaign-${campaignId}`).remove();
+    })
+    .catch(error => {
+      console.error(error);
+      alert("❌ Error deleting campaign.");
+    });
+  }
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+</script>
+{% endblock %}

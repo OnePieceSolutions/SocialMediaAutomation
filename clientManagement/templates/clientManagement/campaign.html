@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<script>
+  let maxPostsPerDay = 5;
+  const selectedSlots = {};
+  const existingPosts = JSON.parse('{{ existing_posts|default:"{}"|escapejs }}');
+  document.addEventListener("DOMContentLoaded", () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate());
+    const minDate = tomorrow.toISOString().split("T")[0];
+    document.querySelector("[name='start_date']").setAttribute("min", minDate);
+
+    const startDate = document.querySelector("[name='start_date']").value;
+    const endDate = document.querySelector("[name='end_date']").value;
+
+    if (startDate && endDate) {
+      document.querySelector("[name='end_date']").disabled = false;
+      generateDays();
+    } else {
+      document.querySelector("[name='end_date']").disabled = true;
+    }
+  });
+
+
+  function getMaxPosts() {
+    const val = document.querySelector("[name='max_posts_per_day']").value;
+    maxPostsPerDay = parseInt(val) || 5;
+  }
+
+  function validateDates() {
+    const start = new Date(document.querySelector("[name='start_date']").value);
+    const end = new Date(document.querySelector("[name='end_date']").value);
+    const diff = (end - start) / (1000 * 3600 * 24);
+
+    if (start && end) {
+      if (end < start) {
+        alert("End date must be after the start date.");
+        return false;
+      }
+      if (diff >= 7) {
+        alert("Campaign duration must be less than or equal to 7 days.");
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function generateDays() {
+    getMaxPosts();
+    const startInput = document.querySelector("[name='start_date']");
+    const endInput = document.querySelector("[name='end_date']");
+    const start = new Date(startInput.value);
+
+    if (startInput.value) {
+      endInput.disabled = false;
+      const maxEnd = new Date(start);
+      maxEnd.setDate(maxEnd.getDate() + 6);
+      endInput.setAttribute("min", startInput.value);
+      endInput.setAttribute("max", maxEnd.toISOString().split("T")[0]);
+    }
+
+    const end = new Date(endInput.value);
+    const container = document.getElementById("postDays");
+    container.innerHTML = "";
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end < start) return;
+
+    const datesToInitialize = [];
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split("T")[0];
+      selectedSlots[dateStr] = {};
+      datesToInitialize.push({
+        dateStr,
+        dateDisplay: d.toDateString(),
+        hasPosts: !!existingPosts[dateStr]
+      });
+
+      container.insertAdjacentHTML("beforeend", `
+        <div class="border border-gray-300 rounded-lg p-4 bg-white dark:bg-soft-100 shadow transition-all hover:shadow-xl">
+          <label class="inline-flex items-center space-x-2 cursor-pointer">
+            <input type="checkbox" id="day-${dateStr}" onclick="toggleDayDetails('${dateStr}')" class="form-checkbox h-4 w-4 text-blue-600 rounded transition duration-200">
+            <span class="font-semibold text-lg">${d.toDateString()}</span>
+          </label>
+          <div id="details-${dateStr}" class="hidden mt-4 space-y-4 transition-all duration-300 ease-in-out"></div>
+        </div>
+      `);
+    }
+
+    datesToInitialize.forEach(({ dateStr, hasPosts }) => {
+      if (hasPosts) {
+        const checkbox = document.getElementById(`day-${dateStr}`);
+        if (checkbox) {
+          checkbox.checked = true;
+          toggleDayDetails(dateStr);
+          const platforms = Object.keys(existingPosts[dateStr]);
+          platforms.forEach(platform => {
+            const chk = document.getElementById(`chk-${dateStr}-${platform}`);
+            if (chk) chk.checked = true;
+            togglePlatformInputs(dateStr, platform);
+
+            const platformContainer = document.getElementById(`slots-${dateStr}-${platform}`);
+            const posts = existingPosts[dateStr][platform];
+            posts.forEach(post => {
+              const id = `${dateStr}-${platform}-${Date.now() + Math.random()}`;
+              if (!selectedSlots[dateStr]) selectedSlots[dateStr] = {};
+              if (!selectedSlots[dateStr][platform]) selectedSlots[dateStr][platform] = [];
+              selectedSlots[dateStr][platform].push(id);
+
+              const div = document.createElement("div");
+              div.classList.add("border", "rounded-lg", "p-4", "bg-white", "space-y-3", "shadow-md");
+              div.innerHTML = `
+                <div class="flex justify-between items-center">
+                  <input type="time" name="schedule_${id}" value="${post.time}" class="px-2 py-1 border rounded dark:bg-soft-100" required>
+                  <button type="button" onclick="removeSlot('${dateStr}', '${platform}', '${id}', this)" class="text-red-500 hover:text-red-700 transition text-lg font-bold">✖</button>
+                </div>
+                <textarea name="content_${id}" rows="2" class="w-full px-3 py-2 border rounded dark:bg-soft-100 resize-none" required>${post.content}</textarea>
+                <div class="grid md:grid-cols-2 gap-3">
+                  <input type="text" name="audience_${id}" value="${post.target_audience}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+                  <input type="text" name="keywords_${id}" value="${post.keywords}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+                  <select name="tone_${id}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required>
+                    <option value="">Select Tone</option>
+                    <option value="professional" ${post.tone === 'professional' ? 'selected' : ''}>Professional</option>
+                    <option value="casual" ${post.tone === 'casual' ? 'selected' : ''}>Casual</option>
+                    <option value="funny" ${post.tone === 'funny' ? 'selected' : ''}>Funny</option>
+                    <option value="inspirational" ${post.tone === 'inspirational' ? 'selected' : ''}>Inspirational</option>
+                  </select>
+                  <select name="length_${id}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required>
+                    <option value="">Select Post Length</option>
+                    <option value="short" ${post.length === 'short' ? 'selected' : ''}>Short</option>
+                    <option value="medium" ${post.length === 'medium' ? 'selected' : ''}>Medium</option>
+                    <option value="long" ${post.length === 'long' ? 'selected' : ''}>Long</option>
+                  </select>
+                  <input type="text" name="cta_${id}" value="${post.call_to_action}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+                  <input type="text" name="image_prompt_${id}" value="${post.image_prompt}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+                </div>
+              `;
+              platformContainer.appendChild(div);
+            });
+          });
+        }
+      }
+    });
+  }
+
+
+  function toggleDayDetails(dateStr) {
+    const details = document.getElementById(`details-${dateStr}`);
+    const isVisible = !details.classList.contains("hidden");
+    details.classList.toggle("hidden");
+
+    if (!isVisible) {
+      details.innerHTML = `
+        {% for platform in platforms %}
+        <div class="border border-gray-200 rounded p-4 bg-gray-50 dark:bg-gray-900">
+          <label class="flex items-center gap-3 font-medium cursor-pointer">
+            <input type="checkbox" onchange="togglePlatformInputs('${dateStr}', '{{ platform }}')" id="chk-${dateStr}-{{ platform }}" class="form-checkbox text-blue-600 h-4 w-4 transition">
+            <span class="font-semibold text-lg"> {{ platform|title }}</span>
+          </label>
+          <div id="slots-${dateStr}-{{ platform }}" class="space-y-3 mt-3 hidden transition-all duration-300 ease-in-out">
+            <button type="button" onclick="addPostSlot('${dateStr}', '{{ platform }}')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded shadow text-sm transition">
+              + Add Time Slot
+            </button>
+          </div>
+        </div>
+        {% endfor %}
+      `;
+    }
+  }
+
+  function togglePlatformInputs(dateStr, platform) {
+    const section = document.getElementById(`slots-${dateStr}-${platform}`);
+    section.classList.toggle("hidden");
+  }
+
+  function getTotalPostsForDate(dateStr) {
+    let total = 0;
+    const platforms = selectedSlots[dateStr] || {};
+    for (const platform in platforms) {
+      total += platforms[platform].length;
+    }
+    return total;
+  }
+
+  function convertToUTCAndStore(id, dateStr) {
+    const timeInput = document.querySelector(`[name="schedule_${id}"]`);
+    const hiddenUTC = document.querySelector(`[name="utc_datetime_${id}"]`);
+    if (!timeInput || !hiddenUTC) return;
+
+    const time = timeInput.value;
+    if (!time) return;
+
+    const [hours, minutes] = time.split(':');
+    const localDateTime = new Date(dateStr);
+    localDateTime.setHours(parseInt(hours));
+    localDateTime.setMinutes(parseInt(minutes));
+    localDateTime.setSeconds(0);
+    localDateTime.setMilliseconds(0);
+    hiddenUTC.value = localDateTime.toISOString();
+    console.log("UTC:", hiddenUTC.value);
+  }
+
+
+  function addPostSlot(dateStr, platform) {
+    if (!selectedSlots[dateStr]) selectedSlots[dateStr] = {};
+    if (!selectedSlots[dateStr][platform]) selectedSlots[dateStr][platform] = [];
+
+    const totalPosts = getTotalPostsForDate(dateStr);
+    if (totalPosts >= maxPostsPerDay) {
+      alert(`Max of ${maxPostsPerDay} posts allowed for ${dateStr}.`);
+      return;
+    }
+
+    const container = document.getElementById(`slots-${dateStr}-${platform}`);
+    const inputs = container.querySelectorAll("input, textarea, select");
+    for (let input of inputs) {
+      if (input.offsetParent !== null && !input.checkValidity()) {
+        alert("Please fill out all existing slot fields before adding a new one.");
+        return;
+      }
+    }
+
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const formattedTime = `${hours}:${minutes}`;
+    convertToUTCAndStore();
+    const id = `${dateStr}-${platform}-${Date.now()}`;
+    selectedSlots[dateStr][platform].push(id);
+
+    const div = document.createElement("div");
+    div.classList.add("border", "rounded-lg", "p-4", "bg-white", "space-y-3", "shadow-md");
+
+    div.innerHTML = `
+      <div class="flex justify-between items-center">
+        <input type="time" name="schedule_${id}" onchange="convertToUTCAndStore('${id}', '${dateStr}')" value="${formattedTime}" class="px-2 py-1 border rounded dark:bg-soft-100" required>
+        <input type="hidden" name="utc_datetime_${id}" />
+        <button type="button" onclick="removeSlot('${dateStr}', '${platform}', '${id}', this)" class="text-red-500 hover:text-red-700 transition text-lg font-bold">✖</button>
+      </div>
+
+      <textarea name="content_${id}" placeholder="Post content" rows="2" class="w-full px-3 py-2 border rounded dark:bg-soft-100 resize-none" required></textarea>
+
+      <div class="grid md:grid-cols-2 gap-3">
+        <input type="text" name="audience_${id}" placeholder="Target Audience" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+        <input type="text" name="keywords_${id}" placeholder="Keywords (comma-separated)" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+
+        <select name="tone_${id}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required>
+          <option value="">Select Tone</option>
+          <option value="professional">Professional</option>
+          <option value="casual">Casual</option>
+          <option value="funny">Funny</option>
+          <option value="inspirational">Inspirational</option>
+        </select>
+
+        <select name="length_${id}" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required>
+          <option value="">Select Post Length</option>
+          <option value="short">Short (Tweet-style)</option>
+          <option value="medium">Medium (Instagram/Facebook)</option>
+          <option value="long">Long (LinkedIn/Blog)</option>
+        </select>
+
+        <input type="text" name="cta_${id}" placeholder="Call To Action (e.g., Sign up, Buy now)" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required />
+        <input type="text" name="image_prompt_${id}" placeholder="Image idea or visual concept" class="w-full px-3 py-2 border rounded dark:bg-soft-100" required/>
+      </div>
+    `;
+
+    const addBtn = container.querySelector("button");
+    container.appendChild(div);
+  }
+
+  function removeSlot(dateStr, platform, id, btn) {
+    selectedSlots[dateStr][platform] = selectedSlots[dateStr][platform].filter(s => s !== id);
+    btn.closest("div.border").remove();
+  }
+  
+</script>
+
+<div class="p-6 bg-base-100 text-base-900 dark:bg-soft-200 dark:text-white">
+  <h2 class="text-3xl font-bold mb-8">
+    {% if campaign %}Edit{% else %}Create{% endif %} a Campaign
+  </h2>
+
+  <form method="POST" onsubmit="return validateDates()" class="space-y-10">
+    {% csrf_token %}
+    {% if campaign %}
+      <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+    {% endif %}
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <label class="block mb-1 text-sm font-semibold">Campaign Name</label>
+        <input type="text" name="name" value="{{ campaign.name|default:'' }}" required class="w-full px-4 py-2 border rounded-lg dark:bg-soft-100" />
+      </div>
+      <div>
+        <label class="block mb-1 text-sm font-semibold">Description</label>
+        <textarea name="description" rows="3" class="w-full px-4 py-2 border rounded-lg dark:bg-soft-100">{{ campaign.description|default:'' }}</textarea>
+      </div>
+      <div>
+        <label class="block mb-1 text-sm font-semibold">Start Date</label>
+        <input type="date" name="start_date" value="{{ campaign.start_date|date:'Y-m-d' }}" onchange="generateDays()" required class="w-full px-4 py-2 border rounded-lg dark:bg-soft-100" />
+      </div>
+      <div>
+        <label class="block mb-1 text-sm font-semibold">End Date</label>
+        <input type="date" name="end_date" value="{{ campaign.end_date|date:'Y-m-d' }}" onchange="generateDays()" required class="w-full px-4 py-2 border rounded-lg dark:bg-soft-100" />
+      </div>
+      <div>
+        <label class="block mb-1 text-sm font-semibold">Max Posts Per Day</label>
+        <input type="number" name="max_posts_per_day" min="1" max="5" value="{{ campaign.max_posts_per_day|default:5 }}" class="w-full px-4 py-2 border rounded-lg dark:bg-soft-100" required />
+      </div>
+    </div>
+
+    <div>
+      <h3 class="text-lg font-bold mt-10 mb-4">Post Schedule</h3>
+      <div id="postDays" class="space-y-4"></div>
+    </div>
+
+    <div class="pt-4">
+      <button type="submit" class="bg-brand-700 hover:bg-brand-500 transition text-white font-semibold py-2 px-6 rounded-lg shadow-md">
+        {% if campaign %}Update{% else %}Create{% endif %} Campaign
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

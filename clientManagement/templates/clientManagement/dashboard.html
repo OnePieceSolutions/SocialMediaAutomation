@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="min-h-screen">
+  <div class="flex-1 flex flex-col">
+    <main class="p-8 flex-1">
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-gray-700 rounded-lg shadow p-6 flex items-center">
+          <div class="bg-blue-100 text-blue-600 rounded-full p-3 mr-4">
+            <span class="material-icons">edit</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold">{{ post_count }}</div>
+            <div class="text-gray-500">Posts Generated</div>
+          </div>
+        </div>
+
+        <div class="bg-gray-700 rounded-lg shadow p-6 flex items-center">
+          <div class="bg-yellow-100 text-yellow-600 rounded-full p-3 mr-4">
+            <span class="material-icons">schedule</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold">{{ scheduled_count }}</div>
+            <div class="text-gray-500">Scheduled</div>
+          </div>
+        </div>
+
+        <div class="bg-gray-700 rounded-lg shadow p-6 flex items-center">
+          <div class="bg-green-100 text-green-600 rounded-full p-3 mr-4">
+            <span class="material-icons">publish</span>
+          </div>
+          <div>
+            <div class="text-2xl font-bold">{{ publish_count }}</div>
+            <div class="text-gray-500">Published</div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold">Recent Posts</h2>
+          <a href="/content-library" class="text-blue-600 hover:underline">View All</a>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {% for post in recent_posts %}
+            <div class="bg-gray-700 rounded-lg shadow p-4 flex flex-col">
+              <div class="h-32 bg-gray-200 rounded mb-4 flex items-center justify-center text-gray-400 overflow-hidden">
+                {% if post.image_file %}
+                  <img src="{{ post.image_file.url }}" class="h-full w-full object-cover rounded" alt="Post Image">
+                {% else %}
+                <img src="{{ post.image_url }}" class="h-full w-full object-cover rounded" alt="Post Image">
+                {% endif %}
+              </div>
+
+              <div class="font-semibold mb-2">
+                {{ post.text_prompt|truncatechars:50 }}
+              </div>
+
+              <div class="text-gray-500 text-sm mb-4">
+                {{ post.image_prompt|truncatechars:80 }}
+              </div>
+
+              <div class="flex items-center justify-between mt-auto">
+                {% if post.scheduledpost_set.exists %}
+                  <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-700">
+                    Scheduled
+                  </span>
+                {% else %}
+                  <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-red-400 text-white">
+                    Stacked
+                  </span>
+                {% endif %}
+
+                <div class="space-x-2">
+                  <a href="#" class="text-blue-600 hover:underline text-sm">Edit</a>
+                </div>
+              </div>
+            </div>
+          {% empty %}
+            <p class="text-gray-400">No recent posts found.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+{% endblock %}

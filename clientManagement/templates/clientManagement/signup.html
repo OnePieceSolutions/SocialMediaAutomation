@@ -1,0 +1,482 @@
+{% extends 'registration_base.html' %} {% load static %} {% block title %}Sign
+Up - Client Management{% endblock %} {% block header %}{% endblock %} 
+{% block content %}
+<style>
+  .form-step {
+    display: none;
+    transform: translateX(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+  }
+  .form-step.active {
+    display: block;
+    transform: translateX(0);
+    opacity: 1;
+  }
+  .progress-bar {
+    height: 8px;
+    transition: width 0.3s ease;
+  }
+  .input-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  .input-group input {
+    color: black;
+    transition: all 0.3s ease;
+  }
+  .input-group input:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  }
+  .input-group .error-message {
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    color: #ef4444;
+    font-size: 0.75rem;
+    display: none;
+  }
+  .input-group.error input {
+    border-color: #ef4444;
+  }
+  .input-group.error .error-message {
+    display: block;
+  }
+</style>
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+/>
+<div class="flex min-h-screen flex-col justify-center py-12 sm:px-6 lg:px-8">
+  <div class="sm:mx-auto sm:w-full sm:max-w-md">
+    <div class="flex justify-center">
+      <div
+        class="w-20 h-20 rounded-full bg-accent-300 flex items-center justify-center"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-12 w-12 text-dark-300"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
+          />
+        </svg>
+      </div>
+    </div>
+    <h2 class="mt-6 text-center text-3xl font-extrabold text-accent-200">
+      Create your account
+    </h2>
+    <p class="mt-2 text-center text-sm text-primary-300">
+      Or
+      <a
+        href="{% url 'clientManagement:signin' %}"
+        class="font-medium text-accent-200 hover:text-accent-100"
+        >sign in to your account</a
+      >
+    </p>
+  </div>
+
+  <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+    <div class="h-2 bg-gray-200">
+      <div
+        id="progressBar"
+        class="progress-bar bg-indigo-500"
+        style="width: 50%"
+      ></div>
+    </div>
+
+    <div
+      class="bg-dark-100/80 backdrop-blur-sm py-8 px-4 shadow-xl sm:rounded-lg sm:px-10 border border-dark-300"
+    >
+      <form id="signupForm" method="post">
+        {% csrf_token %}
+        <div id="step1" class="form-step active space-y-6">
+            <div class="input-group">
+                <label
+                  for="username"
+                  class="block text-sm font-medium text-primary-200 mb-1"
+                  >Username</label
+                >
+                <input
+                  type="text"
+                  id="username"
+                  name="username"
+                  class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                  placeholder="Username"
+                  required
+                />
+              </div>
+
+          <div class="input-group">
+            <label
+              for="email"
+              class="block text-sm font-medium text-primary-200 mb-1"
+              >Email Address</label
+            >
+            <input
+              type="email"
+              id="email"
+              name="email"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              placeholder="john@example.com"
+              required
+            />
+            <span class="error-message"
+              >Please enter a valid email address</span
+            >
+          </div>
+
+          <div class="input-group">
+            <label
+              for="password1"
+              class="block text-sm font-medium text-primary-200 mb-2"
+              >Password</label
+            >
+            <div class="relative">
+              <input
+                type="password"
+                id="password1"
+                name="password1"
+                placeholder="••••••••"
+                class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              />
+              <button
+                type="button"
+                id="togglePassword1"
+                class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-indigo-600"
+              >
+                <i class="far fa-eye" id="eyeIcon"></i>
+              </button>
+            </div>
+            <span class="error-message">
+              Please enter Password with at least 8 characters
+            </span>
+          </div>
+
+          <div class="input-group">
+            <label
+              for="password2"
+              class="block text-sm font-medium text-primary-200 mb-2"
+              >Confirm Password</label
+            >
+            <div class="relative">
+              <input
+                type="password"
+                id="password2"
+                name="password2"
+                placeholder="••••••••"
+                class="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              />
+              <button
+                type="button"
+                id="togglePassword2"
+                class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-indigo-600"
+              >
+                <i class="far fa-eye" id="eyeIcon"></i>
+              </button>
+            </div>
+            <span class="error-message"> Please enter Correct Password </span>
+          </div>
+
+          <div class="mt-6">
+            <button
+              type="button"
+              id="nextBtn"
+              class="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 flex items-center justify-center"
+            >
+              Continue <i class="fas fa-arrow-right ml-2"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="step2" class="form-step">
+
+          <div class="input-group">
+            <label
+              for="phone"
+              class="block text-sm font-medium text-primary-200 mb-1"
+              >Phone Number</label
+            >
+            <input
+              type="tel"
+              id="phone"
+              name="phone"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              placeholder="+19 xxxxxxxxxx"
+            />
+          </div>
+          <div class="flex space-x-6">
+            <div class="input-group">
+              <label
+                for="companyName"
+                class="block text-sm font-medium text-primary-200 mb-1"
+                >Company Name</label
+              >
+              <input
+                type="text"
+                id="companyName"
+                name="companyName"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                placeholder="Eg., OnePiece, Apple, etc."
+                required
+              />
+            </div>
+
+            <div class="input-group">
+              <label
+                for="companyType"
+                class="block text-sm font-medium text-primary-200 mb-1"
+                >Company Type</label
+              >
+              <input
+                type="text"
+                id="companyType"
+                name="companyType"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                placeholder="Eg., Furniture, Electronics, etc."
+                required
+              />
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label
+              for="targetAudience"
+              class="block text-sm font-medium text-primary-200 mb-1"
+              >Target Audience</label
+            >
+            <input
+              type="text"
+              id="targetAudience"
+              name="targetAudience"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              placeholder="Eg., Young Adults, Professionals, etc."
+              required
+            />
+          </div>
+
+          <div class="input-group">
+            <label
+              for="platform"
+              class="block text-sm font-medium text-primary-200 mb-1"
+              >Platform</label
+            >
+            <input
+              type="text"
+              id="platform"
+              name="platform"
+              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              placeholder="Eg., Instagram, Facebook, etc."
+              required
+            />
+          </div>
+
+          <div class="input-group flex">
+            <input
+              type="checkbox"
+              id="terms"
+              name="terms"
+              class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+              required
+            />
+            <label for="terms" class="ml-2 block text-sm text-primary-200">
+              I agree to the
+              <a href="#" class="text-indigo-600 hover:underline"
+                >Terms of Service</a
+              >
+              and
+              <a href="#" class="text-indigo-600 hover:underline"
+                >Privacy Policy</a
+              >
+            </label>
+            <span class="error-message">You must agree to the terms</span>
+          </div>
+
+          <div class="mt-6 flex justify-between">
+            <button
+              type="button"
+              id="prevBtn"
+              class="bg-gray-200 text-primary-200 py-2 px-4 rounded-lg hover:bg-gray-300 transition duration-300 flex items-center justify-center"
+            >
+              <i class="fas fa-arrow-left mr-2"></i> Back
+            </button>
+            <button
+              type="submit"
+              id="submitBtn"
+              class="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300 flex items-center justify-center"
+            >
+              Create Account <i class="fas fa-check ml-2"></i>
+            </button>
+          </div>
+        </div>
+      </form>
+      {% if errors %}
+      <div class="rounded-md bg-red-900/50 p-4">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg
+              class="h-5 w-5 text-red-200"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-200">
+              There were errors with your submission
+            </h3>
+            <div class="mt-2 text-sm text-red-200">
+              <ul role="list" class="list-disc space-y-1 pl-5">
+                {% for error in errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("signupForm");
+    const steps = document.querySelectorAll(".form-step");
+    const nextBtn = document.getElementById("nextBtn");
+    const prevBtn = document.getElementById("prevBtn");
+    const submitBtn = document.getElementById("submitBtn");
+    const progressBar = document.getElementById("progressBar");
+    const togglePassword1 = document.getElementById("togglePassword1");
+    const togglePassword2 = document.getElementById("togglePassword2");
+    const passwordInput1 = document.getElementById("password1");
+    const passwordInput2 = document.getElementById("password2");
+
+    let currentStep = 0;
+
+    togglePassword1.addEventListener("click", function () {
+      const type =
+        passwordInput1.getAttribute("type") === "password"
+          ? "text"
+          : "password";
+      passwordInput1.setAttribute("type", type);
+      this.innerHTML =
+        type === "password"
+          ? '<i class="far fa-eye"></i>'
+          : '<i class="far fa-eye-slash"></i>';
+    });
+    togglePassword2.addEventListener("click", function () {
+      const type =
+        passwordInput2.getAttribute("type") === "password"
+          ? "text"
+          : "password";
+      passwordInput2.setAttribute("type", type);
+      this.innerHTML =
+        type === "password"
+          ? '<i class="far fa-eye"></i>'
+          : '<i class="far fa-eye-slash"></i>';
+    });
+
+    nextBtn.addEventListener("click", function () {
+      if (validateStep(currentStep)) {
+        currentStep++;
+        updateForm();
+      }
+    });
+
+    prevBtn.addEventListener("click", function () {
+      currentStep--;
+      updateForm();
+    });
+
+    function updateForm() {
+      steps.forEach((step, index) => {
+        if (index === currentStep) {
+          step.classList.add("active");
+        } else {
+          step.classList.remove("active");
+        }
+      });
+
+      progressBar.style.width = `${(currentStep + 1) * 50}%`;
+
+      if (currentStep === steps.length - 1) {
+        nextBtn.style.display = "none";
+        prevBtn.style.display = "flex";
+        submitBtn.style.display = "flex";
+      } else if (currentStep === 0) {
+        nextBtn.style.display = "flex";
+        prevBtn.style.display = "none";
+        submitBtn.style.display = "none";
+      } else {
+        nextBtn.style.display = "flex";
+        prevBtn.style.display = "flex";
+        submitBtn.style.display = "none";
+      }
+    }
+
+    function validateStep(stepIndex) {
+      let isValid = true;
+      const currentStepElement = steps[stepIndex];
+      const inputs = currentStepElement.querySelectorAll("input[required]");
+
+      inputs.forEach((input) => {
+        const inputGroup = input.closest(".input-group");
+        inputGroup.classList.remove("error");
+        if (input.type === "email" && !validateEmail(input.value)) {
+          inputGroup.classList.add("error");
+          isValid = false;
+        } else if (input.id === "password1" && !validatePassword(input.value)) {
+          inputGroup.classList.add("error");
+          isValid = false;
+        } else if (input.id === "password2" && !validatePassword(input.value)) {
+          inputGroup.classList.add("error");
+          isValid = false;
+        } else if (input.value.trim() === "") {
+          inputGroup.classList.add("error");
+          isValid = false;
+        } else if (input.id === "terms" && !input.checked) {
+          inputGroup.classList.add("error");
+          isValid = false;
+        }
+      });
+
+      return isValid;
+    }
+
+    function validateEmail(email) {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(email);
+    }
+
+    function validatePassword(password) {
+      return password.length >= 8;
+    }
+
+    function validatePasswordMatch() {
+      const password1 = document.getElementById("password1").value;
+      const password2 = document.getElementById("password2").value;
+      return password1 === password2;
+    }
+  });
+</script>
+
+{% endblock %}
