@@ -1,5 +1,6 @@
 import json
 import os
+import random
 from urllib.parse import urlparse
 import cloudinary
 import cloudinary.uploader
@@ -78,7 +79,7 @@ def generate_with_openai(text_prompt, image_prompt=None):
         print(f"Exception occurred: {e}")
         return text_generated, None
 
-def build_prompt(post: CampaignPost) -> str:
+def build_prompt(post):
     return f"""You are an expert AI assistant for social media marketers.
         Generate two things based on the following campaign details:
         1. A text prompt that can be used to generate engaging social media post content.
@@ -99,6 +100,43 @@ def build_prompt(post: CampaignPost) -> str:
         }}
         """
 
+def build_random_prompt():
+    platforms = ["Instagram", "Twitter", "LinkedIn", "Facebook", "Reddit"]
+    audiences = ["Teens", "Young Adults", "Working Professionals", "Parents", "Tech Enthusiasts"]
+    keywords = [["fitness", "motivation"], ["AI", "future"], ["travel", "adventure"], ["productivity", "focus"], ["fashion", "style"]]
+    tones = ["Inspirational", "Funny", "Professional", "Casual", "Bold"]
+    lengths = ["Short", "Medium", "Long"]
+    ctas = ["Visit our website", "Download now", "Join the movement", "Subscribe today", "Try it free"]
+
+    platform = random.choice(platforms)
+    target_audience = random.choice(audiences)
+    keyword_set = random.choice(keywords)
+    tone = random.choice(tones)
+    length = random.choice(lengths)
+    call_to_action = random.choice(ctas)
+
+    return f"""You are an expert AI assistant for social media marketers.
+            Generate two things based on the following **random** campaign details:
+            1. A text prompt that can be used to generate engaging social media post content.
+            2. An image prompt that can be used to generate a visual for the post.
+
+            Campaign Details:
+            Platform: {platform}
+            Target Audience: {target_audience}
+            Keywords: {', '.join(keyword_set)}
+            Tone: {tone}
+            Post Length: {length}
+            Call to Action: {call_to_action}
+
+            Respond in this JSON format:
+            {{
+            "text_prompt": "...",
+            "image_prompt": "..."
+            }}
+            """
+
+
+
 def generate_prompts_task(campaign_post_id):
     post = CampaignPost.objects.get(id=campaign_post_id)
     if not post.is_prompt_generated:
@@ -115,27 +153,28 @@ def generate_content_task(campaign_post_id):
 
     if post.is_prompt_generated and not post.is_content_generated:
         text, image_url = generate_with_openai(post.text_prompt, post.image_prompt)
+        image_content_file = None
+
         try:
             response = requests.get(image_url)
             if response.status_code == 200:
                 image_content = response.content
                 parsed_url = urlparse(image_url)
-                filename = os.path.basename(parsed_url.path)
-                if not filename:
-                    filename = "generated_image.png"
-                post.image_file.save(filename, ContentFile(image_content), save=False)
+                filename = os.path.basename(parsed_url.path) or "generated_image.png"
 
+                image_content_file = ContentFile(image_content)
+                post.image_file.save(filename, image_content_file, save=False)
             else:
                 print(f"Failed to download image: {response.status_code}")
         except Exception as e:
             print(f"Error downloading image: {e}")
 
-        post.generated_image_url = image_url
+        post.image_url = image_url
         post.text = text
         post.is_content_generated = True
         post.save()
 
-        Post.objects.create(
+        post_obj = Post(
             user=post.campaign.user,
             text_prompt=post.text_prompt,
             image_prompt=post.image_prompt,
@@ -143,6 +182,11 @@ def generate_content_task(campaign_post_id):
             image_url=image_url,
             platform=post.platform,
         )
+
+        if image_content_file:
+            post_obj.image_file.save(filename, image_content_file, save=False)
+
+        post_obj.save()
 
 def get_credentials(user, platform):
     try:

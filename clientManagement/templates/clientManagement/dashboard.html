@@ -9,7 +9,7 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-gray-700 rounded-lg shadow p-6 flex items-center">
           <div class="bg-blue-100 text-blue-600 rounded-full p-3 mr-4">
-            <span class="material-icons">edit</span>
+            <span class="material-icons">Posts</span>
           </div>
           <div>
             <div class="text-2xl font-bold">{{ post_count }}</div>
@@ -29,11 +29,11 @@
 
         <div class="bg-gray-700 rounded-lg shadow p-6 flex items-center">
           <div class="bg-green-100 text-green-600 rounded-full p-3 mr-4">
-            <span class="material-icons">publish</span>
+            <span class="material-icons">Campaigns</span>
           </div>
           <div>
-            <div class="text-2xl font-bold">{{ publish_count }}</div>
-            <div class="text-gray-500">Published</div>
+            <div class="text-2xl font-bold">{{ campaigns_count }}</div>
+            <div class="text-gray-500">Campaigns</div>
           </div>
         </div>
       </div>
@@ -61,22 +61,6 @@
 
               <div class="text-gray-500 text-sm mb-4">
                 {{ post.image_prompt|truncatechars:80 }}
-              </div>
-
-              <div class="flex items-center justify-between mt-auto">
-                {% if post.scheduledpost_set.exists %}
-                  <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-700">
-                    Scheduled
-                  </span>
-                {% else %}
-                  <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded bg-red-400 text-white">
-                    Stacked
-                  </span>
-                {% endif %}
-
-                <div class="space-x-2">
-                  <a href="#" class="text-blue-600 hover:underline text-sm">Edit</a>
-                </div>
               </div>
             </div>
           {% empty %}

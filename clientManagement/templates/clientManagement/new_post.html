@@ -55,11 +55,21 @@
         Customize Your Prompt
       </h2>
 
+      <div id="loadingIndicator" class="flex items-center justify-center py-6 hidden">
+        <svg class="animate-spin h-6 w-6 text-blue-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+        <span class="text-blue-600">Generating...</span>
+      </div>
+
       <form
         id="promptFormContainer"
         method="POST"
         action="{% url 'clientManagement:post' %}"
         class="space-y-4"
+        onsubmit="return showSubmitLoader()"
       >
         {% csrf_token %}
         <label class="text-gray-700 dark:text-gray-300 text-sm font-medium">Text Prompt</label>
@@ -105,6 +115,12 @@
 
   async function loadPrompts() {
     toggleModal();
+    const loader = document.getElementById("loadingIndicator");
+    const form = document.getElementById("promptFormContainer");
+
+    loader.classList.remove("hidden");
+    form.classList.add("hidden");
+
     try {
       const response = await fetch("{% url 'clientManagement:generate_prompts' %}");
       const data = await response.json();
@@ -112,7 +128,19 @@
       document.querySelector('textarea[name="image_prompt"]').value = data.image_prompt || "";
     } catch (error) {
       console.error("Failed to load prompts:", error);
+      alert("Failed to generate prompts. Please try again.");
+    } finally {
+      loader.classList.add("hidden");
+      form.classList.remove("hidden");
     }
+  }
+
+  function showSubmitLoader() {
+    const loader = document.getElementById("loadingIndicator");
+    const form = document.getElementById("promptFormContainer");
+    loader.classList.remove("hidden");
+    form.classList.add("hidden");
+    return true;
   }
 </script>
 {% endblock %}

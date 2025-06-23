@@ -1,7 +1,7 @@
 app_name = 'clientManagement'
 
 from django.urls import path
-from .views import DeleteCredentialView, SignupView, SigninView, LogoutView, DashboardView, HomeView, GeneratePromptsView, SingleImageView, EditImageView, ApplyEditView, CampaignListView, PricingView, SchedulingView, SettingsView, NewPostView,ContentLibraryView, ScheduleSubmitView, ScheduleUpdateView, proxy_image, TwitterLogin, TwitterCallback, MediaView, CreateCampaignView, VerifyAndSaveCredentialView, DeleteCampaignView
+from .views import DeleteCredentialView, SignupView, SigninView, LogoutView, DashboardView, HomeView, GeneratePromptsView, SingleImageView, EditImageView, ApplyEditView, CampaignListView, PricingView, SchedulingView, SettingsView, NewPostView,ContentLibraryView, ScheduleSubmitView, ScheduleUpdateView, proxy_image, TwitterLogin, TwitterCallback, MediaView, CreateCampaignView, VerifyAndSaveCredentialView, DeleteCampaignView, UpdateProfileView, ChangePasswordView, DeleteAccountView
 
 urlpatterns = [
     path('', HomeView.as_view(), name='home'),
@@ -25,6 +25,9 @@ urlpatterns = [
     path('pricing/', PricingView.as_view(), name='pricing'),
     path('schedule/', SchedulingView.as_view(), name='schedule'),
     path('settings/', SettingsView.as_view(), name='settings'),
+    path('settings/update/', UpdateProfileView.as_view(), name='update_profile'),
+    path('settings/change-password/', ChangePasswordView.as_view(), name='change_password'),
+    path('settings/delete-account/', DeleteAccountView.as_view(), name='delete_account'),
     path('new-post/', NewPostView.as_view(), name='new_post'),
     path('content-library/', ContentLibraryView.as_view(), name='content_library'),
     path('schedule/submit/', ScheduleSubmitView.as_view(), name='schedule_submit'),

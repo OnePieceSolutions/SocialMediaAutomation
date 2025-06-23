@@ -1,12 +1,15 @@
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime
+import os
+import uuid
+from django.utils import timezone
 from django.utils.safestring import mark_safe
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.views import View
 from django.contrib import messages
-from .utils import PostSocialMedia, generate_with_openai, get_credentials
+from .utils import PostSocialMedia, generate_with_openai, get_credentials, build_random_prompt
 from .models import CampaignPost, Client, Post, ScheduledPost, UserCredential, Campaign
 from content_creator.prompt_generator import SocialMediaPromptGenerator
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponse
@@ -18,11 +21,11 @@ from django.utils.dateparse import parse_datetime, parse_date
 from django.utils.timezone import make_aware, is_naive
 import secrets, hashlib, base64
 from requests_oauthlib import OAuth1
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
+from django.core.files.base import ContentFile
 
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
-
     class Meta:
         model = User
         fields = ("username", "email", "password1", "password2")
@@ -30,6 +33,7 @@ class CustomUserCreationForm(UserCreationForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.email = self.cleaned_data["email"]
+        user.username = self.cleaned_data["username"]
         if commit:
             user.save()
         return user
@@ -44,15 +48,13 @@ class SignupView(View):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.email = request.POST.get('email', '')
             user.save()
             try:
                 Client.objects.create(
                     user=user,
                     email_id=user.email,
-                    company_name=request.POST.get('company_name', ''),
+                    company_name=request.POST.get('companyName', ''),
                     phone_number=request.POST.get('phone', ''),
-                    address=request.POST.get('address', ''),
                     company_type=request.POST.get('companyType', ''),
                     target_audience=request.POST.get('targetAudience', ''),
                     platforms=request.POST.get('platform', ''),
@@ -100,6 +102,7 @@ class DashboardView(View):
 
         posts = Post.objects.filter(user=request.user).order_by('-created_on')
         scheduled = ScheduledPost.objects.filter(user=request.user)
+        campaigns = Campaign.objects.filter(user=request.user)
 
         recent_posts = posts[:3]
 
@@ -108,7 +111,7 @@ class DashboardView(View):
             'post_count': posts.count(),
             'scheduled_count': scheduled.count(),
             'recent_posts': recent_posts,
-            "publish_count": 0
+            "campaigns_count": campaigns.count()
         }
         return render(request, self.template_name, context)
 
@@ -116,7 +119,55 @@ class SettingsView(View):
     template_name = 'clientManagement/settings.html'
 
     def get(self, request):
-        return render(request, self.template_name)
+        user = Client.objects.filter(user=request.user).first()
+        user_data = {
+            'username': request.user.username,
+            'email': user.email_id,
+            'companyName': user.company_name,
+            'phone': user.phone_number,
+            'companyType': user.company_type,
+            'targetAudience': user.target_audience,
+            'platform': user.platforms
+        }
+        return render(request, self.template_name, {'user': user_data})
+
+class UpdateProfileView(View):
+    def post(self, request):
+        user = request.user
+        client = Client.objects.get(user=user)
+        username = request.POST.get("username")
+        company_name = request.POST.get("company_name")
+
+        user.username = username
+        user.save()
+        client.company_name = company_name
+        client.save()
+
+        messages.success(request, "Profile updated successfully.")
+        return redirect('settings')
+
+class ChangePasswordView(View):
+    def post(self, request):
+        user = request.user
+        current_password = request.POST.get("current_password")
+        new_password = request.POST.get("new_password")
+        confirm_password = request.POST.get("confirm_password")
+
+        if not user.check_password(current_password):
+            messages.error(request, "Current password is incorrect.")
+        elif new_password != confirm_password:
+            messages.error(request, "New passwords do not match.")
+        else:
+            user.set_password(new_password)
+            user.save()
+            messages.success(request, "Password changed successfully.")
+        return redirect('settings')
+
+class DeleteAccountView(View):
+    def post(self, request):
+        request.user.delete()
+        messages.success(request, "Your account has been deleted.")
+        return redirect('home')
 
 class MediaView(View):
     template_name = 'clientManagement/mediaManagement.html'
@@ -126,11 +177,17 @@ class MediaView(View):
         for cred in credentials:
             cred.api_json = mark_safe(json.dumps(cred.api_data or {}))
         credential_choices = UserCredential.PLATFORM_CHOICES
-        existing_platforms = credentials.values_list('platform', flat=True)
+        platforms = []
+        for cred in credentials:
+            api_data = cred.api_data or {}
+            if cred.platform == 'twitter' and 'bearer_token' in api_data:
+                platforms.append(cred.platform)
+            elif cred.platform != 'twitter':
+                platforms.append(cred.platform)
         return render(request, self.template_name, {
             'credentials': credentials,
             'credential_choices': credential_choices,
-            'existing_platforms': list(existing_platforms),
+            'existing_platforms': platforms,
         })
 
 class HomeView(View):
@@ -139,15 +196,15 @@ class HomeView(View):
     def get(self, request):
         user = Client.objects.filter(user=request.user).first()
         user_data = {
-            'username': request.user,
+            'username': request.user.username,
             'email': user.email_id,
             'companyName': user.company_name,
             'phone': user.phone_number,
-            'address': user.address,
             'companyType': user.company_type,
             'targetAudience': user.target_audience,
             'platform': user.platforms
         }
+        print(user_data)
         return render(request, self.template_name, {'user_data': user_data})
 
 class LandingPageView(View):
@@ -168,23 +225,16 @@ class GeneratePromptsView(View):
 
         if not user:
             return redirect('clientManagement:signup')
-
-        data = {
-            "company_name": user.company_name,
-            "company_type": user.company_type,
-            "brand_tone": user.brand_tone,
-            "target_audience": user.target_audience,
-            "top_services_or_products": user.top_services_or_products,
-            "platforms": user.platforms,
-            "offers_or_promotions": user.offers_or_promotions,
-        }
-
-        generator = SocialMediaPromptGenerator(data)
-        prompts = generator.generate_all()
+        
+        prompts = build_random_prompt()
+        text_prompt, _ = generate_with_openai(prompts)
+        prompts_data = json.loads(text_prompt)
+        text_prompt = prompts_data.get("text_prompt", "")
+        image_prompt = prompts_data.get("image_prompt", "")
 
         return JsonResponse({
-            "text_prompt": prompts[0].get("text_prompt", ""),
-            "image_prompt": prompts[0].get("image_prompt", "")
+            "text_prompt": text_prompt,
+            "image_prompt": image_prompt
         })
 
 class EditImageView(View):
@@ -193,7 +243,6 @@ class EditImageView(View):
     def get(self, request, post_id):
         post = get_object_or_404(Post, id=post_id, user=request.user)
         img_url = post.image_file.url if post.image_file else post.image_url
-        print(img_url)
         return render(request, self.template_name, {
             "post": post,
             "image_url": img_url,
@@ -230,8 +279,6 @@ class SingleImageView(View):
             text_generated, generated_url = generate_with_openai(text_prompt,image_prompt)
             if generated_url:
                 image_url = generated_url
-            else:
-                messages.warning(request, "Failed to generate image. Using default fallback.")
 
         post = Post.objects.create(
             user=request.user,
@@ -241,6 +288,15 @@ class SingleImageView(View):
             text=text_generated if text_generated else "",
             platform="manual"
         )
+        response = requests.get(image_url)
+        if response.status_code == 200:
+            image_content = response.content
+            parsed_url = urlparse(image_url)
+            filename = os.path.basename(parsed_url.path) or "generated_image.png"
+
+            image_content_file = ContentFile(image_content)
+            post.image_file.save(filename, image_content_file, save=False)
+        post.save()
 
         return render(request, self.template_name, {
             "post_id": post.id,
@@ -355,7 +411,6 @@ class ContentLibraryView(View):
         if post.image_file:
             post.image_file.delete(save=False)
         post.delete()
-        messages.success(request, "Post deleted successfully.")
         return redirect('clientManagement:content_library')
 
 class SchedulingView(View):
@@ -369,10 +424,18 @@ class SchedulingView(View):
             user=request.user,
             scheduled_time__gte=now
         ).select_related('post').order_by('-scheduled_time')
-
+        credentials = UserCredential.objects.filter(user=request.user)
+        platforms = []
+        for cred in credentials:
+            api_data = cred.api_data or {}
+            if cred.platform == 'twitter' and 'bearer_token' in api_data:
+                platforms.append(cred.platform)
+            elif cred.platform != 'twitter':
+                platforms.append(cred.platform)
         return render(request, self.template_name, {
             'posts': posts,
             'scheduled_posts': scheduled_posts,
+            'platforms': platforms
         })
 
 class ScheduleSubmitView(View):
@@ -417,11 +480,11 @@ class ScheduleSubmitView(View):
 
         ScheduledPost.objects.create(
             post=post,
+            user=request.user,
             scheduled_time=schedule_time,
             platform=platform
         )
 
-        messages.success(request, "Post scheduled successfully!")
         return redirect('clientManagement:schedule')
 
 class ScheduleUpdateView(View):
@@ -429,7 +492,6 @@ class ScheduleUpdateView(View):
         schedule = get_object_or_404(ScheduledPost, pk=pk, post__user=request.user)
         if request.POST.get("delete"):
             schedule.delete()
-            messages.success(request, "Schedule deleted successfully!")
             return redirect('clientManagement:schedule')
         new_time = request.POST.get("schedule_time")
         platform = request.POST.get("platform", schedule.platform)
@@ -438,8 +500,6 @@ class ScheduleUpdateView(View):
             schedule.scheduled_time = new_time
         schedule.platform = platform
         schedule.save()
-
-        messages.success(request, "Schedule updated successfully!")
         return redirect('clientManagement:schedule')
 
 class NewPostView(View):
@@ -451,20 +511,19 @@ class NewPostView(View):
 class ApplyEditView(View):
     def post(self, request, post_id):
         post = get_object_or_404(Post, id=post_id, user=request.user)
-        edited_image = request.FILES.get("edited_image")
-        if not edited_image:
-            messages.error(request, "No edited image was uploaded.")
-            return redirect('clientManagement:edit_image', post_id=post_id)
 
-        # 1) Delete the old file if it exists
-        if post.image_file:
-            post.image_file.delete(save=False)
+        if 'edited_image' in request.FILES:
+            post.image_file.save(
+                f"{uuid.uuid4().hex}.png",
+                request.FILES['edited_image'],
+                save=True
+            )
 
-        # 2) Save the newly edited image under the same ImageField
-        post.image_file.save(edited_image.name, edited_image, save=True)
+        if 'text' in request.POST:
+            post.text = request.POST['text']
+            post.save()
 
-        messages.success(request, "Image updated successfully.")
-        return redirect("clientManagement:content_library")
+        return redirect('clientManagement:content_library')
     
 class CampaignListView(View):
     template_name = 'clientManagement/campaignList.html'
@@ -498,7 +557,13 @@ class CreateCampaignView(View):
 
     def get(self, request, campaign_id=None):
         credentials = UserCredential.objects.filter(user=request.user)
-        platforms = list(credentials.values_list('platform', flat=True))
+        platforms = []
+        for cred in credentials:
+            api_data = cred.api_data or {}
+            if cred.platform == 'twitter' and 'bearer_token' in api_data:
+                platforms.append(cred.platform)
+            elif cred.platform != 'twitter':
+                platforms.append(cred.platform)
         campaign = None
         grouped_posts = defaultdict(lambda: defaultdict(list))
 

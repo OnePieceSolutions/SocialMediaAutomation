@@ -1,27 +1,31 @@
 {% extends 'base.html' %}
 {% load static %}
+
 {% block content %}
-<main class="p-6 max-w-7xl mx-auto">
-  <h2 class="text-4xl font-extrabold text-primary-600 dark:text-white mb-10">
-    Generated Prompts & Images
+<main class="p-6 max-w-6xl mx-auto">
+  <h2 class="text-4xl font-extrabold text-primary-100 mb-10 text-center">
+    ✨ Generated Prompts & Images
   </h2>
 
-  <div class=" gap-8 sm:grid-cols-2">
-    <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden border border-gray-200 dark:border-gray-700">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
+    <div class="bg-dark-300 dark:bg-gray-900 border border-gray-700 rounded-2xl shadow-lg overflow-hidden transition hover:shadow-2xl duration-300">
       <img
         src="{{ image }}"
         alt="Generated Image"
-        class="w-full h-auto object-contain"
+        class="w-full h-64 sm:h-80 object-cover object-center"
       />
-      <div class="p-5 space-y-3">
-        <p class="text-gray-700 dark:text-gray-300 text-sm">
-          <span class="font-semibold text-gray-900 dark:text-white">Text Prompt:</span>
+      <div class="p-6 space-y-4">
+        <p class="text-sm text-gray-300 leading-relaxed">
+          <span class="block text-primary-100 font-semibold text-base mb-1">Text Prompt:</span>
           {{ text }}
         </p>
-        <a href="{% url 'clientManagement:edit_image' post_id %}" 
-          class="inline-block mt-4 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg">
-          Edit
-        </a>
+
+        <div class="flex justify-end">
+          <a href="{% url 'clientManagement:edit_image' post_id %}" 
+            class="bg-accent-400 hover:bg-accent-500 text-gray-900 px-5 py-2 text-sm font-medium rounded-lg transition duration-200">
+            ✏️ Edit Image
+          </a>
+        </div>
       </div>
     </div>
   </div>

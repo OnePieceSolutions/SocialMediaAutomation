@@ -3,7 +3,7 @@
 {% block header_title %}Post Scheduler{% endblock %}
 
 {% block content %}
-<div class="p-6 max-w-4xl mx-auto space-y-6">
+<div class="p-6 max-w-7xl mx-auto space-y-6">
 
     <div class="flex justify-between items-center">
         <h2 class="text-2xl font-bold text-gray-100 dark:text-white">Scheduled Posts</h2>
@@ -12,7 +12,38 @@
         </button>
     </div>
 
-    <!--  -->
+    {% if scheduled_posts %}
+    <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {% for item in scheduled_posts %}
+        <div class="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-lg border border-gray-200 dark:border-gray-700 space-y-4 transition hover:shadow-xl">
+            {% if item.post.image_file %}
+            <div class="rounded-xl overflow-hidden h-48 bg-gray-100">
+                <img src="{{ item.post.image_file.url }}" alt="Post Image" class="object-cover w-full h-full">
+            </div>
+            {% else %}
+            <div class="rounded-xl overflow-hidden h-48 bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                No Image
+            </div>
+            {% endif %}
+            <div class="space-y-2">
+                <p class="text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold">Platform:</span> {{ item.platform|capfirst }}</p>
+                <p class="text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold">Scheduled Time:</span> <span class="local-time" data-utc="{{ item.scheduled_time|date:'c' }}"></span></p>
+                <p class="text-sm text-gray-700 dark:text-gray-300"><span class="font-semibold">Text:</span> {{ item.post.text|truncatechars:100 }}</p>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick='openEditModal("{{ item.id }}", "{{ item.scheduled_time|date:"Y-m-d\\TH:i"}}", "{{ item.platform|escapejs }}")' 
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow">
+                    Edit
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center text-gray-400 py-20">
+        <p>No scheduled posts yet. Click "New Schedule" to get started.</p>
+    </div>
+    {% endif %}
 
     <div id="scheduleModal" class="fixed inset-0 z-50 hidden bg-black/60 flex items-center justify-center">
         <div class="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-2xl">
@@ -23,9 +54,7 @@
                     <label for="newPostSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Select Post</label>
                     <select id="newPostSelect" name="post_id" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" aria-label="Select Post">
                         {% for post in posts %}
-                        <option value="{{ post.id }}">
-                            {{ post.text|truncatechars:50 }}
-                        </option>
+                        <option value="{{ post.id }}">{{ post.text|truncatechars:50 }}</option>
                         {% empty %}
                         <option disabled>No posts available</option>
                         {% endfor %}
@@ -44,10 +73,11 @@
                 <div>
                     <label for="newPlatformSelect" class="block text-sm font-medium text-gray-700 dark:text-gray-200">Select Platform</label>
                     <select id="newPlatformSelect" name="platform" class="w-full mt-1 p-3 rounded-lg border dark:bg-gray-900 text-black dark:text-white" required>
-                        <option value="facebook">Facebook</option>
-                        <option value="instagram">Instagram</option>
-                        <option value="twitter">Twitter</option>
-                        <option value="reddit">Reddit</option>
+                        {% for platform in platforms %}
+                        <option value="{{ platform }}">{{ platform|capfirst }}</option>
+                        {% empty %}
+                        <option disabled>No platforms available</option>
+                        {% endfor %}
                     </select>
                 </div>
                 <div class="flex justify-end space-x-4">
@@ -85,12 +115,8 @@
                     </select>
                 </div>
                 <div class="flex justify-between space-x-4">
-                    <div>
-                        <button type="button" onclick="toggleEditModal()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">Update</button>
-                    </div>
+                    <button type="button" onclick="toggleEditModal()" class="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded">Cancel</button>
+                    <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">Update</button>
                 </div>
             </form>
         </div>
@@ -99,97 +125,97 @@
 </div>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function () {
-      const postImmediatelyNew = document.getElementById('postImmediatelyNew');
-      const scheduleTimeDivNew = document.getElementById('scheduleTimeDivNew');
-      const newScheduleTimeInput = document.getElementById('newScheduleTime');
-      const scheduleTimeUtcInput = document.createElement('input');
-      scheduleTimeUtcInput.type = 'hidden';
-      scheduleTimeUtcInput.name = 'schedule_time_utc';
-      scheduleTimeUtcInput.id = 'scheduleTimeUtcInput';
-      newScheduleTimeInput.parentElement.appendChild(scheduleTimeUtcInput);
-  
-      function toggleScheduleTimeNew() {
-          if (postImmediatelyNew.checked) {
-              scheduleTimeDivNew.classList.add('hidden');
-              newScheduleTimeInput.removeAttribute('required');
-          } else {
-              scheduleTimeDivNew.classList.remove('hidden');
-              newScheduleTimeInput.setAttribute('required', 'required');
-          }
-      }
-      postImmediatelyNew.addEventListener('change', toggleScheduleTimeNew);
-      toggleScheduleTimeNew();
-  
-      const newScheduleForm = document.querySelector('form[action="{% url "clientManagement:schedule_submit" %}"]');
-      newScheduleForm.addEventListener('submit', function () {
-          const localDate = new Date(newScheduleTimeInput.value);
-          if (!isNaN(localDate)) {
-              scheduleTimeUtcInput.value = localDate.toISOString();
-          }
-      });
-  
-      const postImmediatelyEdit = document.getElementById('postImmediatelyEdit');
-      const scheduleTimeDivEdit = document.getElementById('scheduleTimeDivEdit');
-      const editScheduleTimeInput = document.getElementById('editScheduleTime');
-      const editScheduleForm = document.getElementById('editScheduleForm');
-      const editUtcInput = document.createElement('input');
-      editUtcInput.type = 'hidden';
-      editUtcInput.name = 'schedule_time_utc';
-      editUtcInput.id = 'editScheduleTimeUtc';
-      editScheduleTimeInput.parentElement.appendChild(editUtcInput);
-  
-      function toggleScheduleTimeEdit() {
-          if (postImmediatelyEdit.checked) {
-              scheduleTimeDivEdit.classList.add('hidden');
-              editScheduleTimeInput.removeAttribute('required');
-          } else {
-              scheduleTimeDivEdit.classList.remove('hidden');
-              editScheduleTimeInput.setAttribute('required', 'required');
-          }
-      }
-      postImmediatelyEdit.addEventListener('change', toggleScheduleTimeEdit);
-      toggleScheduleTimeEdit();
-  
-      editScheduleForm.addEventListener('submit', function () {
-          const localDate = new Date(editScheduleTimeInput.value);
-          if (!isNaN(localDate)) {
-              editUtcInput.value = localDate.toISOString();
-          }
-      });
-  
-      function toggleModal() {
-          document.getElementById("scheduleModal").classList.toggle("hidden");
-          postImmediatelyNew.checked = false;
-          toggleScheduleTimeNew();
-          newScheduleTimeInput.value = '';
-      }
-  
-      function toggleEditModal() {
-          document.getElementById("editScheduleModal").classList.toggle("hidden");
-      }
-  
-      window.toggleModal = toggleModal;
-      window.toggleEditModal = toggleEditModal;
-  
-      window.openEditModal = function (scheduleId, currentTime, platform) {
-          document.getElementById("editScheduleId").value = scheduleId;
-          editScheduleTimeInput.value = currentTime;
-          document.getElementById("editPlatform").value = platform;
-          editScheduleForm.action = `/schedule/update/${scheduleId}/`;
-          const isScheduled = !!currentTime;
-          postImmediatelyEdit.checked = !isScheduled;
-          toggleScheduleTimeEdit();
-          toggleEditModal();
-      }
-  });
+document.addEventListener('DOMContentLoaded', function () {
+    const postImmediatelyNew = document.getElementById('postImmediatelyNew');
+    const scheduleTimeDivNew = document.getElementById('scheduleTimeDivNew');
+    const newScheduleTimeInput = document.getElementById('newScheduleTime');
+    const scheduleTimeUtcInput = document.createElement('input');
+    scheduleTimeUtcInput.type = 'hidden';
+    scheduleTimeUtcInput.name = 'schedule_time_utc';
+    scheduleTimeUtcInput.id = 'scheduleTimeUtcInput';
+    newScheduleTimeInput.parentElement.appendChild(scheduleTimeUtcInput);
 
-  document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("[data-utc]").forEach(el => {
-      const utcTime = el.getAttribute("data-utc");
-      const localTime = new Date(utcTime).toLocaleString();
-      el.querySelector(".local-time").textContent = localTime;
+    function toggleScheduleTimeNew() {
+        if (postImmediatelyNew.checked) {
+            scheduleTimeDivNew.classList.add('hidden');
+            newScheduleTimeInput.removeAttribute('required');
+        } else {
+            scheduleTimeDivNew.classList.remove('hidden');
+            newScheduleTimeInput.setAttribute('required', 'required');
+        }
+    }
+    postImmediatelyNew.addEventListener('change', toggleScheduleTimeNew);
+    toggleScheduleTimeNew();
+
+    const newScheduleForm = document.querySelector('form[action="{% url "clientManagement:schedule_submit" %}"]');
+    newScheduleForm.addEventListener('submit', function () {
+        const localDate = new Date(newScheduleTimeInput.value);
+        if (!isNaN(localDate)) {
+            scheduleTimeUtcInput.value = localDate.toISOString();
+        }
     });
-  });
-</script>  
+
+    const postImmediatelyEdit = document.getElementById('postImmediatelyEdit');
+    const scheduleTimeDivEdit = document.getElementById('scheduleTimeDivEdit');
+    const editScheduleTimeInput = document.getElementById('editScheduleTime');
+    const editScheduleForm = document.getElementById('editScheduleForm');
+    const editUtcInput = document.createElement('input');
+    editUtcInput.type = 'hidden';
+    editUtcInput.name = 'schedule_time_utc';
+    editUtcInput.id = 'editScheduleTimeUtc';
+    editScheduleTimeInput.parentElement.appendChild(editUtcInput);
+
+    function toggleScheduleTimeEdit() {
+        if (postImmediatelyEdit.checked) {
+            scheduleTimeDivEdit.classList.add('hidden');
+            editScheduleTimeInput.removeAttribute('required');
+        } else {
+            scheduleTimeDivEdit.classList.remove('hidden');
+            editScheduleTimeInput.setAttribute('required', 'required');
+        }
+    }
+    postImmediatelyEdit.addEventListener('change', toggleScheduleTimeEdit);
+    toggleScheduleTimeEdit();
+
+    editScheduleForm.addEventListener('submit', function () {
+        const localDate = new Date(editScheduleTimeInput.value);
+        if (!isNaN(localDate)) {
+            editUtcInput.value = localDate.toISOString();
+        }
+    });
+
+    function toggleModal() {
+        document.getElementById("scheduleModal").classList.toggle("hidden");
+        postImmediatelyNew.checked = false;
+        toggleScheduleTimeNew();
+        newScheduleTimeInput.value = '';
+    }
+
+    function toggleEditModal() {
+        document.getElementById("editScheduleModal").classList.toggle("hidden");
+    }
+
+    window.toggleModal = toggleModal;
+    window.toggleEditModal = toggleEditModal;
+
+    window.openEditModal = function (scheduleId, currentTime, platform) {
+        document.getElementById("editScheduleId").value = scheduleId;
+        editScheduleTimeInput.value = currentTime;
+        document.getElementById("editPlatform").value = platform;
+        editScheduleForm.action = `/schedule/update/${scheduleId}/`;
+        const isScheduled = !!currentTime;
+        postImmediatelyEdit.checked = !isScheduled;
+        toggleScheduleTimeEdit();
+        toggleEditModal();
+    }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[data-utc]").forEach(el => {
+        const utcTime = el.getAttribute("data-utc");
+        const localTime = new Date(utcTime).toLocaleString();
+        el.textContent = localTime;
+    });
+});
+</script>
 {% endblock %}

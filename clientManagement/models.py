@@ -32,13 +32,9 @@ class Client(BaseModel):
     email_id = models.EmailField(unique=True)
     company_name = models.CharField(max_length=255)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    address = models.TextField(blank=True, null=True)
     company_type = models.CharField(max_length=100, blank=True, null=True)
     target_audience = models.CharField(max_length=255, blank=True, null=True)
     platforms = models.CharField(max_length=255, blank=True, null=True)
-    top_services_or_products = models.CharField(max_length=255, blank=True, null=True)
-    offers_or_promotions = models.TextField(blank=True, null=True)
-    brand_tone = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.company_name} ({self.email_id})"
@@ -109,6 +105,7 @@ class Post(BaseModel):
 
 class ScheduledPost(BaseModel):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='posts')
     scheduled_time = models.DateTimeField()
     platform = models.CharField(max_length=30, choices=[
         ('facebook', 'Facebook'),

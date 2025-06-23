@@ -1,4 +1,3 @@
-{# clientManagement/templates/clientManagement/edit_image.html #}
 {% extends 'base.html' %}
 {% load static %}
 
@@ -6,15 +5,38 @@
 <link rel="stylesheet" href="{% static 'tui-image-editor.css' %}">
 <link rel="stylesheet" href="{% static 'tui-color-picker.css' %}">
 
-<div id="tui-image-editor-container" style="width: 100%; height: 600px;"></div>
-<div style="margin-top: 1rem; text-align: center;">
-  <button id="save-edited-btn" class="btn btn-primary">Save Edited Image</button>
+<div class="min-h-screen bg-gray-900 text-white px-4 py-10">
+  <h1 class="text-4xl font-bold text-center mb-10">Edit Your Post</h1>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-10 max-w-7xl mx-auto">
+    
+    <!-- Image Editor -->
+    <div class="bg-white rounded-lg shadow-xl overflow-hidden border border-gray-300 h-[600px]">
+      <div id="tui-image-editor-container" class="h-full"></div>
+    </div>
+
+    <!-- Text Editor & Controls -->
+    <div class="bg-gray-800 rounded-lg shadow-lg p-6 flex flex-col justify-between">
+      <div>
+        <h2 class="text-2xl font-semibold mb-4">Edit Caption</h2>
+        <textarea id="post-text" class="w-full h-60 p-4 rounded-lg text-black" placeholder="Enter your caption here...">{{ post.text }}</textarea>
+      </div>
+
+      <div class="mt-6 space-y-4">
+        <button id="save-edited-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-semibold transition duration-300">
+          Save Changes
+        </button>
+        <div id="loadingSpinner" class="text-accent-100 text-center hidden animate-pulse">Saving your changes...</div>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <script src="{% static 'tui-color-picker.js' %}"></script>
 <script src="{% static 'tui-image-editor.js' %}"></script>
+
 <script>
-  // 1) Instantiate TUI Image Editor
   const imageEditor = new tui.ImageEditor('#tui-image-editor-container', {
     includeUI: {
       loadImage: {
@@ -25,8 +47,8 @@
       uiSize: { width: '100%', height: '100%' },
       menuBarPosition: 'bottom'
     },
-    cssMaxWidth: 800,
-    cssMaxHeight: 600,
+    cssMaxWidth: 500,
+    cssMaxHeight: 500,
     selectionStyle: {
       cornerSize: 20,
       rotatingPointOffset: 70
@@ -34,61 +56,46 @@
   });
 
   function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let i = 0; i < cookies.length; i++) {
-        const cookie = cookies[i].trim();
-        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
-        }
-      }
-    }
-    return cookieValue;
+    const cookie = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+    return cookie ? decodeURIComponent(cookie.split('=')[1]) : null;
   }
-  const csrftoken = getCookie('csrftoken');
 
   function dataURLtoBlob(dataurl) {
-    const arr = dataurl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
+    const [header, base64] = dataurl.split(',');
+    const mime = header.match(/:(.*?);/)[1];
+    const binary = atob(base64);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+    return new Blob([array], { type: mime });
   }
+
   document.getElementById('save-edited-btn').addEventListener('click', () => {
     const dataURL = imageEditor.toDataURL();
-    if (!dataURL) {
-      alert('Could not extract the edited image.');
-      return;
-    }
-    const blob = dataURLtoBlob(dataURL);
+    const caption = document.getElementById('post-text').value;
+    const spinner = document.getElementById('loadingSpinner');
+    spinner.classList.remove('hidden');
+
     const formData = new FormData();
-    formData.append('edited_image', blob, 'edited_image.png');
+    formData.append('edited_image', dataURLtoBlob(dataURL), 'edited_image.png');
+    formData.append('text', caption);
+
     fetch("{% url 'clientManagement:apply_edit' post.id %}", {
       method: 'POST',
-      headers: {
-        'X-CSRFToken': csrftoken
-      },
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
       body: formData
     })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      return response.text();
+    .then(res => {
+      if (!res.ok) throw new Error(res.statusText);
+      return res.text();
     })
     .then(() => {
-      alert('Image saved successfully! Redirecting to Content Library…');
-      window.location.href = "{% url 'clientManagement:content_library' %}";
+      spinner.innerText = 'Changes saved! Redirecting...';
+      setTimeout(() => window.location.href = "{% url 'clientManagement:content_library' %}", 1200);
     })
-    .catch(err => {
-      console.error('Error uploading edited image:', err);
-      alert('Failed to save edited image.');
+    .catch(error => {
+      console.error('Error saving changes:', error);
+      spinner.classList.add('hidden');
+      alert('Something went wrong. Try again.');
     });
   });
 </script>
